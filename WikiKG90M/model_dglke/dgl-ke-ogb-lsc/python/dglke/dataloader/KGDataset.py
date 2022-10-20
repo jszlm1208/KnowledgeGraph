@@ -20,7 +20,7 @@
 import os, sys
 import numpy as np
 import pdb
-from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
+from ogb.lsc import WikiKG90Mv2Dataset, WikiKG90Mv2Evaluator
 import pickle
 
 
@@ -251,44 +251,18 @@ class KGDatasetWiki(KGDataset):
     '''Load a knowledge graph wikikg
     '''
 
-    def __init__(self, args, path, name='wikikg90m'):
+    def __init__(self, path, name='wikikg90m'):
         self.name = name
-        self.dataset = WikiKG90MDataset(path)
-        if args.eval_percent != 1.:
-            num_valid = len(self.dataset.valid_dict['h,r->t']['hr'])
-            num_valid = int(num_valid * args.eval_percent)
-            self.dataset.valid_dict['h,r->t']['hr'] = self.dataset.valid_dict[
-                'h,r->t']['hr'][:num_valid]
-            self.dataset.valid_dict['h,r->t'][
-                't_candidate'] = self.dataset.valid_dict['h,r->t'][
-                    't_candidate'][:num_valid]
-            self.dataset.valid_dict['h,r->t'][
-                't_correct_index'] = self.dataset.valid_dict['h,r->t'][
-                    't_correct_index'][:num_valid]
-            print("num_valid", num_valid)
-        if args.test_percent != 1.:
-            num_test = len(self.dataset.test_dict['h,r->t']['hr'])
-            num_test = int(num_test * args.test_percent)
-            self.dataset.test_dict['h,r->t']['hr'] = self.dataset.test_dict[
-                'h,r->t']['hr'][:num_test]
-            self.dataset.test_dict['h,r->t'][
-                't_candidate'] = self.dataset.test_dict['h,r->t'][
-                    't_candidate'][:num_test]
-            print("num_test", num_test)
-        if args.train_percent != 1.:
-            num_train = self.dataset.train_hrt.shape[0]
-            num_train = int(num_train * args.train_percent)
-            print("num_train", num_train)
-            self.train = self.dataset.train_hrt.T[:, :num_train]
-        else:
-            self.train = self.dataset.train_hrt.T
-
+        self.dataset = WikiKG90Mv2Dataset(path)
+        self.train = self.dataset.train_hrt.T
         self.n_entities = self.dataset.num_entities
         self.n_relations = self.dataset.num_relations
         self.valid = None
         self.test = None
         self.valid_dict = self.dataset.valid_dict
-        self.test_dict = self.dataset.test_dict
+        self.valid_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'val_t_candidate.npy'))
+        self.test_dict = self.dataset.test_dict('test-dev')
+        self.test_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'test_t_candidate.npy'))
         self.entity_feat = self.dataset.entity_feat
         self.relation_feat = self.dataset.relation_feat
         if 't,r->h' in self.valid_dict:
@@ -817,7 +791,7 @@ def get_dataset(args,
         elif data_name == 'wn18rr':
             dataset = KGDatasetWN18rr(data_path)
         elif data_name == 'wikikg90m':
-            dataset = KGDatasetWiki(args, data_path)
+            dataset = KGDatasetWiki(data_path)
         else:
             assert False, "Unknown dataset {}".format(data_name)
     elif format_str.startswith('raw_udd'):

@@ -37,7 +37,7 @@ import torch.multiprocessing as mp
 from .train_pytorch import load_model
 from .train_pytorch import train, train_mp
 from .train_pytorch import test, test_mp
-from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
+from ogb.lsc import WikiKG90Mv2Dataset, WikiKG90Mv2Evaluator
 
 
 def set_global_seed(seed):
@@ -351,7 +351,7 @@ def main():
         model.entity_feat.emb = dataset.entity_feat
         model.relation_feat.emb = dataset.relation_feat
     print("Model created, it takes %s seconds" % (time.time() - t1))
-    model.evaluator = WikiKG90MEvaluator()
+    model.evaluator = WikiKG90Mv2Evaluator()
 
     if args.num_proc > 1 or args.async_update:
         model.share_memory()
