@@ -45,7 +45,7 @@ from .dataloader import EvalDataset
 from .dataloader import get_dataset
 import pdb
 from collections import defaultdict
-from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
+from ogb.lsc import WikiKG90Mv2Dataset, WikiKG90Mv2Evaluator
 from tqdm import tqdm
 import pickle
 from math import ceil
@@ -243,7 +243,7 @@ def train(args,
                         result_dict['h,r->t'][key] = np.concatenate(
                             result_dict['h,r->t'][key], 0)
 
-                evaluator = WikiKG90MEvaluator()
+                evaluator = WikiKG90Mv2Evaluator()
                 metrics = evaluator.eval(valid_result_dict)
                 metric = 'mrr'
                 logging.info("valid-{} at step {}: {}".format(metric, step,

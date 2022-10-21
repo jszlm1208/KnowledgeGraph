@@ -31,7 +31,7 @@ from dglke.utils import get_compatible_batch_size
 from dglke.models.infer import ScoreInfer
 from dglke.dataloader import get_dataset, EvalDataset
 from dglke.utils import CommonArgParser
-from ogb.lsc import WikiKG90MEvaluator
+from ogb.lsc import WikiKG90Mv2Evaluator
 from dglke.train_pytorch import load_model, load_model_from_checkpoint
 from dglke.models.pytorch.tensor_models import thread_wrapped_func
 
@@ -144,7 +144,7 @@ def main():
     if args.encoder_model_name in ['roberta', 'concat']:
         model.entity_feat.emb = dataset.entity_feat
         model.relation_feat.emb = dataset.relation_feat
-    model.evaluator = WikiKG90MEvaluator()
+    model.evaluator = WikiKG90Mv2Evaluator()
     print("init the model done, the proc_num:{} will load the model".format(
         args.num_proc))
     if args.num_proc > 1 or args.async_update:

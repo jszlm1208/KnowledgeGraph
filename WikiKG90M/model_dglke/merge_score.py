@@ -17,7 +17,7 @@ import pickle
 import json
 import numpy as np
 import sys
-from ogb.lsc import WikiKG90MDataset, WikiKG90MEvaluator
+from ogb.lsc import WikiKG90Mv2Dataset, WikiKG90Mv2Evaluator
 import pdb
 from collections import defaultdict
 import torch.nn.functional as F
@@ -56,7 +56,7 @@ if __name__ == '__main__':
         name for name in all_file_names if '.pkl' in name and 'valid' in name
     ]
     steps = [0]
-    evaluator = WikiKG90MEvaluator()
+    evaluator = WikiKG90Mv2Evaluator()
     device = torch.device('cpu')
 
     print(valid_file_names)
