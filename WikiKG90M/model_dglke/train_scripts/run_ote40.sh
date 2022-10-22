@@ -14,7 +14,6 @@ CUDA_VISIBLE_DEVICES=0,1 \
     --lr_decay_interval 10000 \
     --scale_type 2 \
     --max_step 6000000 \
-    --async_update --force_sync_interval 10 \
     --eval_interval 50000 \
     --mlp_lr 0.00002 \
     --seed $RANDOM \

@@ -28,9 +28,9 @@ from distutils.version import LooseVersion
 TH_VERSION = LooseVersion(th.__version__)
 if TH_VERSION.version[0] == 1 and TH_VERSION.version[1] < 2:
     raise Exception("DGL-ke has to work with Pytorch version >= 1.2")
-from .models.pytorch.tensor_models import thread_wrapped_func
-from .models import KEModel
-from .utils import save_model, get_compatible_batch_size
+from models.pytorch.tensor_models import thread_wrapped_func
+from models import KEModel
+from utils import save_model, get_compatible_batch_size
 
 import os
 import logging
@@ -41,8 +41,8 @@ import dgl
 from dgl.contrib import KVClient
 import dgl.backend as F
 
-from .dataloader import EvalDataset
-from .dataloader import get_dataset
+from dataloader import EvalDataset
+from dataloader import get_dataset
 import pdb
 from collections import defaultdict
 from ogb.lsc import WikiKG90Mv2Dataset, WikiKG90Mv2Evaluator
@@ -246,8 +246,7 @@ def train(args,
                 evaluator = WikiKG90Mv2Evaluator()
                 metrics = evaluator.eval(valid_result_dict)
                 metric = 'mrr'
-                logging.info("valid-{} at step {}: {}".format(metric, step,
-                                                              metrics[metric]))
+                logging.info("valid-{} at step {}: {}".format(metric, step, metrics[metric]))
                 if metrics[metric] > best_valid_mrr:
                     best_valid_mrr = metrics[metric]
                     best_valid_idx = step
@@ -311,10 +310,8 @@ def test(args, model, test_samplers, step, rank=0, mode='Test'):
         assert 'h,r->t' in answers
         if 'h,r->t' in answers:
             assert 'h,r->t' in logs, "h,r->t not in logs"
-            input_dict['h,r->t'] = {
-                't_correct_index': th.cat(answers['h,r->t'], 0),
-                't_pred_top10': th.cat(logs['h,r->t'], 0)
-            }
+            input_dict['h,r->t'] = {'t': th.cat(
+                answers['h,r->t'], 0), 't_pred_top10': th.cat(logs['h,r->t'], 0)}
             if step >= 30000:
                 input_dict['h,r->t']['scores'] = th.cat(scores["h,r->t"], 0)
     for i in range(len(test_samplers)):

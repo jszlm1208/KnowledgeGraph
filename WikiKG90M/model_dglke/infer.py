@@ -102,7 +102,7 @@ def infer(args, model, config, rank, samplers, mode="valid"):
             if 'h,r->t' in answers:
                 assert 'h,r->t' in logs, "h,r->t not in logs"
                 input_dict['h,r->t'] = {
-                    't_correct_index': torch.cat(answers['h,r->t'], 0),
+                    't': torch.cat(answers['h,r->t'], 0),
                     't_pred_top10': torch.cat(logs['h,r->t'], 0)
                 }
                 input_dict['h,r->t']['scores'] = torch.cat(scores["h,r->t"], 0)
