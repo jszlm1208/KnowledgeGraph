@@ -338,11 +338,8 @@ class CommonArgParser(argparse.ArgumentParser):
                           help='We force a synchronization between processes every x steps for'\
                                   'multiprocessing training. This potentially stablizes the training process'
                                   'to get a better performance. For multiprocessing training, it is set to 1000 by default.')
-        self.add_argument(
-            '--hidden_dim',
-            type=int,
-            default=400,
-            help='The embedding size of relation and entity')
+        self.add_argument('--hidden_dim', type=int, default=400, help='The embedding size of relation and entity')
+        self.add_argument('--feat_hidden_dim', type=int, default=100, help='The embedding size of relation and entity')
         self.add_argument(
             '--lr',
             type=float,

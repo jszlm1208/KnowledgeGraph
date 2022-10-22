@@ -845,7 +845,7 @@ class KEModel(object):
 
         return loss, log
 
-     def update(self, gpu_id=-1):
+    def update(self, gpu_id=-1):
         """ Update the embeddings in the model
 
         gpu_id : int
