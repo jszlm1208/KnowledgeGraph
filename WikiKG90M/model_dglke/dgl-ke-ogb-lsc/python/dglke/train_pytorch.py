@@ -60,12 +60,17 @@ def load_model(args,
                ent_feat_dim,
                rel_feat_dim,
                ckpt=None):
-    model = KEModel(args, args.model_name, n_entities, n_relations,
-                    args.hidden_dim, args.gamma,
-                    double_entity_emb=args.double_ent, double_relation_emb=args.double_rel,
-                    ent_feat_dim=ent_feat_dim, rel_feat_dim=rel_feat_dim,
-                    LRE=args.LRE, LRE_rank=args.LRE_rank,
-                    feat_hidden_dim=args.feat_hidden_dim)
+    model = KEModel(
+        args,
+        args.model_name,
+        n_entities,
+        n_relations,
+        args.hidden_dim,
+        args.gamma,
+        double_entity_emb=args.double_ent,
+        double_relation_emb=args.double_rel,
+        ent_feat_dim=ent_feat_dim,
+        rel_feat_dim=rel_feat_dim)
     if ckpt is not None:
         assert False, "We do not support loading model emb for genernal Embedding"
     return model
@@ -83,7 +88,16 @@ def load_model_from_checkpoint(args, n_entities, n_relations, ckpt_path,
     return model
 
 
-def train(args, model, train_sampler, valid_samplers=None, test_samplers=None, rank=0, rel_parts=None, cross_rels=None, barrier=None, client=None):
+def train(args,
+          model,
+          train_sampler,
+          valid_samplers=None,
+          test_samplers=None,
+          rank=0,
+          rel_parts=None,
+          cross_rels=None,
+          barrier=None,
+          client=None):
     logs = []
     for arg in vars(args):
         logging.info('{:20}:{}'.format(arg, getattr(args, arg)))
@@ -105,8 +119,10 @@ def train(args, model, train_sampler, valid_samplers=None, test_samplers=None, r
         model.prepare_cross_rels(cross_rels)
 
     if args.encoder_model_name in ['roberta', 'concat']:
-        model.transform_net = model.transform_net.to(th.device('cuda:' + str(gpu_id)))
-        optimizer = th.optim.Adam(model.transform_net.parameters(), args.mlp_lr)
+        model.transform_net = model.transform_net.to(
+            th.device('cuda:' + str(gpu_id)))
+        optimizer = th.optim.Adam(model.transform_net.parameters(),
+                                  args.mlp_lr)
     else:
         optimizer = None
 
@@ -230,7 +246,8 @@ def train(args, model, train_sampler, valid_samplers=None, test_samplers=None, r
                 evaluator = WikiKG90Mv2Evaluator()
                 metrics = evaluator.eval(valid_result_dict)
                 metric = 'mrr'
-                logging.info("valid-{} at step {}: {}".format(metric, step, metrics[metric]))
+                logging.info("valid-{} at step {}: {}".format(metric, step,
+                                                              metrics[metric]))
                 if metrics[metric] > best_valid_mrr:
                     best_valid_mrr = metrics[metric]
                     best_valid_idx = step
@@ -294,8 +311,10 @@ def test(args, model, test_samplers, step, rank=0, mode='Test'):
         assert 'h,r->t' in answers
         if 'h,r->t' in answers:
             assert 'h,r->t' in logs, "h,r->t not in logs"
-            input_dict['h,r->t'] = {'t': th.cat(
-                answers['h,r->t'], 0), 't_pred_top10': th.cat(logs['h,r->t'], 0)}
+            input_dict['h,r->t'] = {
+                't_correct_index': th.cat(answers['h,r->t'], 0),
+                't_pred_top10': th.cat(logs['h,r->t'], 0)
+            }
             if step >= 30000:
                 input_dict['h,r->t']['scores'] = th.cat(scores["h,r->t"], 0)
     for i in range(len(test_samplers)):

@@ -822,11 +822,14 @@ class EvalDataset(object):
             new_edges['h,r->t'] = {
                 'hr': edges['h,r->t']['hr'][beg:end],
                 't_candidate': edges['h,r->t']['t_candidate'][beg:end],
+                #    't_correct_index': edges['h,r->t']['t_correct_index'][beg:end]
             }
-            if 't' in edges['h,r->t']:
-                new_edges['h,r->t']['t_correct_index'] = edges['h,r->t']['t'][beg:end]
+            if 't_correct_index' in edges['h,r->t']:
+                new_edges['h,r->t']['t_correct_index'] = edges['h,r->t'][
+                    't_correct_index'][beg:end]
             else:
-                new_edges['h,r->t']['t_correct_index'] = np.zeros(end - beg, dtype=np.short)
+                new_edges['h,r->t']['t_correct_index'] = np.zeros(
+                    end - beg, dtype=np.short)
         else:
             assert False, mode
         print(beg, end)
