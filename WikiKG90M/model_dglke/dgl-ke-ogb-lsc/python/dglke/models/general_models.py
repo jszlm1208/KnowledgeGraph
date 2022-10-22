@@ -243,19 +243,16 @@ class KEModel(object):
     double_relation_emb : bool
         If True, relation embedding size will be 2 * hidden_dim.
         Default: False
+    LRE: bool
+        If True, the entity embedding matrix is approximated by two low rank matrixs
+        Default: False
+    LRE_rank: int
+        When LRE=True, LRE_rank specifies rank of these two matrixs
     """
 
-    def __init__(self,
-                 args,
-                 model_name,
-                 n_entities,
-                 n_relations,
-                 hidden_dim,
-                 gamma,
-                 double_entity_emb=False,
-                 double_relation_emb=False,
-                 ent_feat_dim=-1,
-                 rel_feat_dim=-1):
+    def __init__(self, args, model_name, n_entities, n_relations, hidden_dim, gamma,
+                 double_entity_emb=False, double_relation_emb=False, ent_feat_dim=-1, rel_feat_dim=-1,
+                 LRE=False, LRE_rank=200, feat_hidden_dim=0):
         super(KEModel, self).__init__()
         self.args = args
         self.has_edge_importance = args.has_edge_importance
@@ -268,32 +265,36 @@ class KEModel(object):
         entity_dim = 2 * hidden_dim if double_entity_emb else hidden_dim
         relation_dim = 2 * hidden_dim if double_relation_emb else hidden_dim
         self.encoder_model_name = args.encoder_model_name
-
+        self.LRE = args.LRE
+        self.LRE_rank = args.LRE_rank
+        self.feat_hidden_dim = args.feat_hidden_dim
         device = get_device(args)
 
         self.loss_gen = LossGenerator(
             args, args.loss_genre, args.neg_adversarial_sampling,
             args.adversarial_temperature, args.pairwise)
 
-        if self.encoder_model_name in ['shallow', 'concat']:
-            self.entity_emb = ExternalEmbedding(args, n_entities, entity_dim,
-                                                F.cpu() if args.mix_cpu_gpu
-                                                else device)
-        if self.encoder_model_name in ['roberta', 'concat']:
+        if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+            if self.LRE:
+                self.entity_emb_base = ExternalEmbedding(args, self.LRE_rank, entity_dim,
+                                                         F.cpu() if args.mix_cpu_gpu else device)
+                self.entity_emb_index = ExternalEmbedding(args, n_entities, self.LRE_rank,
+                                                          F.cpu() if args.mix_cpu_gpu else device)
+                self.entity_emb = None
+            else:
+                self.entity_emb = ExternalEmbedding(args, n_entities, entity_dim,
+                                                    F.cpu() if args.mix_cpu_gpu else device)
+        if self.encoder_model_name in ['roberta', 'concat', 'concat_v1']:
             assert ent_feat_dim != -1 and rel_feat_dim != -1
-            self.entity_feat = ExternalEmbedding(
-                args,
-                n_entities,
-                ent_feat_dim,
-                F.cpu() if args.mix_cpu_gpu else device,
-                is_feat=True)
+            self.entity_feat = ExternalEmbedding(args, n_entities, ent_feat_dim,
+                                                 F.cpu() if args.mix_cpu_gpu else device, is_feat=True)
         # For RESCAL, relation_emb = relation_dim * entity_dim
         if model_name == 'RESCAL':
             rel_dim = relation_dim * entity_dim
         else:
             rel_dim = relation_dim
 
-        self.use_mlp = self.encoder_model_name in ['concat', 'roberta']
+        self.use_mlp = self.encoder_model_name in ['concat', 'roberta','concat_v1']
         self.use_scale = True if args.scale_type > 0 else False
         if self.encoder_model_name == 'concat':
             if model_name == "OTE":
@@ -308,9 +309,10 @@ class KEModel(object):
                                          relation_dim)
             # self.transform_e_net = torch.nn.Linear(entity_dim, entity_dim)
             # self.transform_r_net = torch.nn.Linear(relation_dim, relation_dim)
+        elif self.encoder_model_name == 'concat_v1':
+            self.transform_net = MLP(ent_feat_dim, feat_hidden_dim, rel_feat_dim, feat_hidden_dim)
         elif self.encoder_model_name == 'roberta':
-            self.transform_net = MLP(ent_feat_dim, entity_dim, rel_feat_dim,
-                                     relation_dim)
+            self.transform_net = MLP(ent_feat_dim, entity_dim, rel_feat_dim, relation_dim)
 
         self.rel_dim = rel_dim
         self.entity_dim = entity_dim
@@ -318,7 +320,7 @@ class KEModel(object):
         self.soft_rel_part = args.soft_rel_part
         assert not self.strict_rel_part and not self.soft_rel_part
         if not self.strict_rel_part and not self.soft_rel_part:
-            if self.encoder_model_name in ['shallow', 'concat']:
+            if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
                 if model_name == "OTE":
                     self.relation_emb = RelationExternalEmbedding(
                         args, n_relations, rel_dim,
@@ -327,7 +329,7 @@ class KEModel(object):
                     self.relation_emb = ExternalEmbedding(
                         args, n_relations, rel_dim,
                         F.cpu() if args.mix_cpu_gpu else device)
-            if self.encoder_model_name in ['roberta', 'concat']:
+            if self.encoder_model_name in ['roberta', 'concat', 'concat_v1']:
                 self.relation_feat = ExternalEmbedding(
                     args,
                     n_relations,
@@ -405,22 +407,22 @@ class KEModel(object):
         dataset : str
             Dataset name as prefix to the saved embeddings.
         """
-        if self.encoder_model_name in ['shallow', 'concat']:
-            self.entity_emb.save(path,
-                                 dataset + '_' + self.model_name + '_entity')
-        if self.encoder_model_name in ['roberta', 'concat']:
-            torch.save({
-                'transform_state_dict': self.transform_net.state_dict()
-            }, os.path.join(path, dataset + "_" + self.model_name + "_mlp"))
+        if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+            if self.LRE:
+                self.entity_emb_base.save(path, dataset+'_'+self.model_name+'_entity_emb_base')
+                self.entity_emb_index.save(path, dataset+'_'+self.model_name+'_entity_emb_index')
+            else:
+                self.entity_emb.save(path, dataset+'_'+self.model_name+'_entity')
+        if self.encoder_model_name in ['roberta', 'concat', 'concat_v1']:
+            torch.save({'transform_state_dict': self.transform_net.state_dict()},
+                       os.path.join(path, dataset+"_"+self.model_name+"_mlp"))
         if self.strict_rel_part or self.soft_rel_part:
-            self.global_relation_emb.save(
-                path, dataset + '_' + self.model_name + '_relation')
+            self.global_relation_emb.save(path, dataset+'_'+self.model_name+'_relation')
         else:
-            if self.encoder_model_name in ['shallow', 'concat']:
-                self.relation_emb.save(
-                    path, dataset + '_' + self.model_name + '_relation')
+            if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+                self.relation_emb.save(path, dataset+'_'+self.model_name+'_relation')
 
-        self.score_func.save(path, dataset + '_' + self.model_name)
+        self.score_func.save(path, dataset+'_'+self.model_name)
 
     def load_emb(self, path, dataset):
         """Load the model.
@@ -440,11 +442,15 @@ class KEModel(object):
     def reset_parameters(self):
         """Re-initialize the model.
         """
-        if self.encoder_model_name in ['shallow', 'concat']:
-            self.entity_emb.init(self.emb_init)
+        if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+            if self.LRE:
+                self.entity_emb_base.init(1.0)
+                self.entity_emb_index.init(self.emb_init)
+            else:
+                self.entity_emb.init(self.emb_init)
         self.score_func.reset_parameters()
         if (not self.strict_rel_part) and (not self.soft_rel_part):
-            if self.encoder_model_name in ['shallow', 'concat']:
+            if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
                 self.relation_emb.init(self.emb_init)
         else:
             self.global_relation_emb.init(self.emb_init)
@@ -503,23 +509,41 @@ class KEModel(object):
         num_chunks = neg_g.num_chunks
         chunk_size = neg_g.chunk_size
         neg_sample_size = neg_g.neg_sample_size
-        mask = F.ones(
-            (num_chunks, chunk_size * (neg_sample_size + chunk_size)),
-            dtype=F.float32,
-            ctx=F.context(pos_g.ndata['emb']))
+        mask = F.ones((num_chunks, chunk_size * (neg_sample_size + chunk_size)),
+                      dtype=F.float32, ctx=F.context(pos_g.ndata['emb']))
         if neg_g.neg_head:
             neg_head_ids = neg_g.ndata['id'][neg_g.head_nid]
             if self.encoder_model_name == 'roberta':
                 neg_head = self.transform_net.embed_entity(
                     self.entity_feat(neg_head_ids, gpu_id, False))
             elif self.encoder_model_name == 'shallow':
-                neg_head = self.entity_emb(neg_head_ids, gpu_id, trace)
+                if self.LRE:
+                    emb_index = self.entity_emb_index(neg_head_ids, gpu_id, trace)
+                    emb_base = self.entity_emb_base(None, gpu_id, trace)
+                    neg_head = torch.mm(emb_index, emb_base)
+                else:
+                    neg_head = self.entity_emb(neg_head_ids, gpu_id, trace)
             elif self.encoder_model_name == 'concat':
+                if self.LRE:
+                    emb_index = self.entity_emb_index(neg_head_ids, gpu_id, trace)
+                    emb_base = self.entity_emb_base(None, gpu_id, trace)
+                    neg_head = torch.mm(emb_index, emb_base)
+                else:
+                    neg_head = self.entity_emb(neg_head_ids, gpu_id, trace)
+
+                neg_head = self.transform_net.embed_entity(torch.cat(
+                    [self.entity_feat(neg_head_ids, gpu_id, False), neg_head], -1))
+            elif self.encoder_model_name == 'concat_v1':
+                if self.LRE:
+                    emb_index = self.entity_emb_index(neg_head_ids, gpu_id, trace)
+                    emb_base = self.entity_emb_base(None, gpu_id, trace)
+                    neg_emb = torch.mm(emb_index, emb_base)
+                else:
+                    neg_emb = self.entity_emb(neg_head_ids, gpu_id, trace)
+
                 neg_head = self.transform_net.embed_entity(
-                    torch.cat([
-                        self.entity_feat(neg_head_ids, gpu_id, False),
-                        self.entity_emb(neg_head_ids, gpu_id, trace)
-                    ], -1))
+                    self.entity_feat(neg_head_ids, gpu_id, False))
+                neg_head = torch.cat([neg_emb, neg_head], -1)
 
             head_ids, tail_ids = pos_g.all_edges(order='eid')
             if to_device is not None and gpu_id >= 0:
@@ -543,27 +567,46 @@ class KEModel(object):
             neg_head = neg_head.reshape(num_chunks * neg_sample_size, -1)
             neg_head, tail = self.head_neg_prepare(
                 pos_g.edata['id'], num_chunks, neg_head, tail, gpu_id, trace)
-            neg_score = self.head_neg_score(neg_head, rel, tail, num_chunks,
-                                            chunk_size, neg_sample_size)
+            neg_score = self.head_neg_score(neg_head, rel, tail,
+                                            num_chunks, chunk_size, neg_sample_size)
         else:
             neg_tail_ids = neg_g.ndata['id'][neg_g.tail_nid]
             if self.encoder_model_name == 'roberta':
                 neg_tail = self.transform_net.embed_entity(
                     self.entity_feat(neg_tail_ids, gpu_id, False))
             elif self.encoder_model_name == 'shallow':
-                neg_tail = self.entity_emb(neg_tail_ids, gpu_id, trace)
+                if self.LRE:
+                    neg_tail = torch.mm(
+                        self.entity_emb_index(neg_tail_ids, gpu_id, trace),
+                        self.entity_emb_base(None, gpu_id, trace))
+                else:
+                    neg_tail = self.entity_emb(neg_tail_ids, gpu_id, trace)
             elif self.encoder_model_name == 'concat':
+                if self.LRE:
+                    neg_tail = torch.mm(
+                        self.entity_emb_index(neg_tail_ids, gpu_id, trace),
+                        self.entity_emb_base(None, gpu_id, trace))
+                else:
+                    neg_tail = self.entity_emb(neg_tail_ids, gpu_id, trace)
+                neg_tail = self.transform_net.embed_entity(torch.cat(
+                    [self.entity_feat(neg_tail_ids, gpu_id, False), neg_tail], -1))
+            elif self.encoder_model_name == 'concat_v1':
+                if self.LRE:
+                    neg_emb = torch.mm(
+                        self.entity_emb_index(neg_tail_ids, gpu_id, trace),
+                        self.entity_emb_base(None, gpu_id, trace))
+                else:
+                    neg_emb = self.entity_emb(neg_tail_ids, gpu_id, trace)
                 neg_tail = self.transform_net.embed_entity(
-                    torch.cat([
-                        self.entity_feat(neg_tail_ids, gpu_id, False),
-                        self.entity_emb(neg_tail_ids, gpu_id, trace)
-                    ], -1))
+                    self.entity_feat(neg_tail_ids, gpu_id, False))
+                neg_tail = torch.cat([neg_emb, neg_tail], -1)
 
             head_ids, tail_ids = pos_g.all_edges(order='eid')
             if to_device is not None and gpu_id >= 0:
                 head_ids = to_device(head_ids, gpu_id)
             head = pos_g.ndata['emb'][head_ids]
             rel = pos_g.edata['emb']
+
 
             # This is negative edge construction similar to the above.
             if neg_deg_sample:
@@ -605,47 +648,88 @@ class KEModel(object):
         argsort = F.argsort(scores, dim=1, descending=True)
         return argsort[:, :10], scores
 
-    def predict_score_wikikg(self,
-                             query,
-                             candidate,
-                             mode,
-                             to_device=None,
-                             gpu_id=-1,
-                             trace=False):
+    def predict_score_wikikg(self, query, candidate, mode, to_device=None, gpu_id=-1, trace=False):
         num_chunks = len(query)
         chunk_size = 1
         neg_sample_size = candidate.shape[1]
+        mask = torch.ge(candidate, 0)
+        candidate = candidate * mask
         if mode == 'h,r->t':
             if self.encoder_model_name == 'roberta':
                 neg_tail = self.transform_net.embed_entity(
                     self.entity_feat(candidate.view(-1), gpu_id, False))
-                head = self.transform_net.embed_entity(
-                    self.entity_feat(query[:, 0], gpu_id, False))
+                head = self.transform_net.embed_entity(self.entity_feat(query[:, 0], gpu_id, False))
                 rel = self.transform_net.embed_relation(
                     self.relation_feat(query[:, 1], gpu_id, False))
             elif self.encoder_model_name == 'shallow':
-                neg_tail = self.entity_emb(candidate.view(-1), gpu_id, False)
-                head = self.entity_emb(query[:, 0], gpu_id, False)
+                if self.LRE:
+                    neg_tail_index = self.entity_emb_index(candidate.view(-1), gpu_id, False)
+                    head_index = self.entity_emb_index(query[:, 0], gpu_id, False)
+                    entity_base = self.entity_emb_base(None, gpu_id, False)
+                    neg_tail = torch.mm(neg_tail_index, entity_base)
+                    head = torch.mm(head_index, entity_base)
+                else:
+                    neg_tail = self.entity_emb(candidate.view(-1), gpu_id, False)
+                    head = self.entity_emb(query[:, 0], gpu_id, False)
                 rel = self.relation_emb(query[:, 1], gpu_id, False)
             elif self.encoder_model_name == 'concat':
-                neg_tail = self.transform_net.embed_entity(
-                    torch.cat([
-                        self.entity_feat(candidate.view(-1), gpu_id, False),
-                        self.entity_emb(candidate.view(-1), gpu_id, False)
-                    ], -1))
-                head = self.transform_net.embed_entity(
-                    torch.cat([
-                        self.entity_feat(query[:, 0], gpu_id, False),
-                        self.entity_emb(query[:, 0], gpu_id, False)
-                    ], -1))
-                rel = self.transform_net.embed_relation(
-                    torch.cat([
-                        self.relation_feat(query[:, 1], gpu_id, False),
-                        self.relation_emb(query[:, 1], gpu_id, False)
-                    ], -1))
-                #rel = self.transform_net.embed_relation(self.relation_emb(query[:,1], gpu_id, False), skip=True)
-            neg_score = self.tail_neg_score(head, rel, neg_tail, num_chunks,
-                                            chunk_size, neg_sample_size)
+                if self.LRE:
+                    neg_tail_index = self.entity_emb_index(candidate.view(-1), gpu_id, False)
+                    head_index = self.entity_emb_index(query[:, 0], gpu_id, False)
+                    entity_base = self.entity_emb_base(None, gpu_id, False)
+                    neg_tail = torch.mm(neg_tail_index, entity_base)
+                    head = torch.mm(head_index, entity_base)
+                else:
+                    neg_tail = self.entity_emb(candidate.view(-1), gpu_id, False)
+                    head = self.entity_emb(query[:, 0], gpu_id, False)
+
+                neg_tail = self.transform_net.embed_entity(torch.cat([self.entity_feat(
+                    candidate.view(-1), gpu_id, False), neg_tail], -1))
+                head = self.transform_net.embed_entity(torch.cat(
+                    [self.entity_feat(query[:, 0], gpu_id, False), head], -1))
+                rel = self.transform_net.embed_relation(torch.cat([self.relation_feat(
+                    query[:, 1], gpu_id, False), self.relation_emb(query[:, 1], gpu_id, False)], -1))
+            elif self.encoder_model_name == 'concat_v1':
+                if self.LRE:
+                    neg_tail_index = self.entity_emb_index(candidate.view(-1), gpu_id, False)
+                    head_index = self.entity_emb_index(query[:, 0], gpu_id, False)
+                    entity_base = self.entity_emb_base(None, gpu_id, False)
+                    neg_tail = torch.mm(neg_tail_index, entity_base)
+                    head = torch.mm(head_index, entity_base)
+                else:
+                    neg_tail = self.entity_emb(candidate.view(-1), gpu_id, False)
+                    head = self.entity_emb(query[:, 0], gpu_id, False)
+                """
+                neg_tail = self.transform_net.embed_entity(torch.cat([self.entity_feat(
+                    candidate.view(-1), gpu_id, False), neg_tail], -1))
+                head = self.transform_net.embed_entity(torch.cat(
+                    [self.entity_feat(query[:, 0], gpu_id, False), head], -1))
+                rel = self.transform_net.embed_relation(torch.cat([self.relation_feat(
+                    query[:, 1], gpu_id, False), self.relation_emb(query[:, 1], gpu_id, False)], -1))
+                """
+                neg_tail = torch.cat([
+                    neg_tail,
+                    self.transform_net.embed_entity(
+                        self.entity_feat(candidate.view(-1), gpu_id, False)
+                    )
+                ], -1)
+
+                head = torch.cat([
+                    head,
+                    self.transform_net.embed_entity(
+                        self.entity_feat(query[:, 0], gpu_id, False)
+                    )
+                ], -1)
+                rel = torch.cat([
+                    self.relation_emb(query[:, 1], gpu_id, False),
+                    self.transform_net.embed_relation(
+                        self.relation_feat(query[:, 1], gpu_id, False)
+                    )
+                ], -1)
+
+            neg_score = self.tail_neg_score(head, rel, neg_tail,
+                                            num_chunks, chunk_size, neg_sample_size).squeeze(1)
+            neg_score[mask == 0] = torch.finfo(torch.float).min
         else:
             assert False
         return neg_score.squeeze(dim=1)
@@ -671,80 +755,108 @@ class KEModel(object):
             loss info
         """
         # print(gpu_id, self.transform_net.transform_e_net.weight)
-        pos_g.neg_head = neg_g.neg_head
         if self.encoder_model_name == 'roberta':
             pos_g.ndata['emb'] = self.transform_net.embed_entity(
                 self.entity_feat(pos_g.ndata['id'], gpu_id, False))
             pos_g.edata['emb'] = self.transform_net.embed_relation(
                 self.relation_feat(pos_g.edata['id'], gpu_id, False))
         elif self.encoder_model_name == 'shallow':
-            pos_g.ndata['emb'] = self.entity_emb(pos_g.ndata['id'], gpu_id,
-                                                 True)
-            pos_g.edata['emb'] = self.relation_emb(pos_g.edata['id'], gpu_id,
-                                                   True)
+            if self.LRE:
+                emb_base = self.entity_emb_base(None, gpu_id, True)
+                emb_index = self.entity_emb_index(pos_g.ndata['id'], gpu_id, True)
+                pos_g.ndata['emb'] = torch.mm(emb_index, emb_base)
+            else:
+                pos_g.ndata['emb'] = self.entity_emb(pos_g.ndata['id'], gpu_id, True)
+            pos_g.edata['emb'] = self.relation_emb(pos_g.edata['id'], gpu_id, True)
         elif self.encoder_model_name == 'concat':
-            pos_g.ndata['emb'] = self.transform_net.embed_entity(
-                torch.cat([
-                    self.entity_feat(pos_g.ndata['id'], gpu_id, False),
-                    self.entity_emb(pos_g.ndata['id'], gpu_id, True)
-                ], -1))
-            pos_g.edata['emb'] = self.transform_net.embed_relation(
-                torch.cat([
-                    self.relation_feat(pos_g.edata['id'], gpu_id, False),
-                    self.relation_emb(pos_g.edata['id'], gpu_id, True)
-                ], -1))
-            #pos_g.edata['emb'] = self.transform_net.embed_relation(self.relation_emb(pos_g.edata['id'], gpu_id, True), True)
+            if self.LRE:
+                emb_base = self.entity_emb_base(None, gpu_id, True)
+                emb_index = self.entity_emb_index(pos_g.ndata['id'], gpu_id, True)
+                pos_g_emb = torch.mm(emb_index, emb_base)
+            else:
+                pos_g_emb = self.entity_emb(pos_g.ndata['id'], gpu_id, True)
+
+            pos_g.ndata['emb'] = self.transform_net.embed_entity(torch.cat([self.entity_feat(
+                pos_g.ndata['id'], gpu_id, False), pos_g_emb], -1))
+            pos_g.edata['emb'] = self.transform_net.embed_relation(torch.cat([self.relation_feat(
+                pos_g.edata['id'], gpu_id, False), self.relation_emb(pos_g.edata['id'], gpu_id, True)], -1))
+        elif self.encoder_model_name == 'concat_v1':
+            if self.LRE:
+                emb_base = self.entity_emb_base(None, gpu_id, True)
+                emb_index = self.entity_emb_index(pos_g.ndata['id'], gpu_id, True)
+                pos_g_emb = torch.mm(emb_index, emb_base)
+            else:
+                pos_g_emb = self.entity_emb(pos_g.ndata['id'], gpu_id, True)
+            """
+            pos_g.ndata['emb'] = self.transform_net.embed_entity(torch.cat([self.entity_feat(
+                pos_g.ndata['id'], gpu_id, False), pos_g_emb], -1))
+            pos_g.edata['emb'] = self.transform_net.embed_relation(torch.cat([self.relation_feat(
+                pos_g.edata['id'], gpu_id, False), self.relation_emb(pos_g.edata['id'], gpu_id, True)], -1))
+            """
+            pos_g.ndata['emb'] = torch.cat([
+                pos_g_emb,
+                self.transform_net.embed_entity(self.entity_feat(pos_g.ndata['id'], gpu_id, False))
+            ], -1)
+            pos_g.edata['emb'] = torch.cat([
+                self.relation_emb(pos_g.edata['id'], gpu_id, True),
+                self.transform_net.embed_relation(
+                    self.relation_feat(pos_g.edata['id'], gpu_id, False))
+            ], -1)
+
         self.score_func.prepare(pos_g, gpu_id, True)
         pos_score = self.predict_score(pos_g)
         if gpu_id >= 0:
-            neg_score = self.predict_neg_score(
-                pos_g,
-                neg_g,
-                to_device=cuda,
-                gpu_id=gpu_id,
-                trace=True,
-                neg_deg_sample=self.args.neg_deg_sample)
+            neg_score = self.predict_neg_score(pos_g, neg_g, to_device=cuda,
+                                               gpu_id=gpu_id, trace=True,
+                                               neg_deg_sample=self.args.neg_deg_sample)
         else:
-            neg_score = self.predict_neg_score(
-                pos_g,
-                neg_g,
-                trace=True,
-                neg_deg_sample=self.args.neg_deg_sample)
+            neg_score = self.predict_neg_score(pos_g, neg_g, trace=True,
+                                               neg_deg_sample=self.args.neg_deg_sample)
 
         neg_score = reshape(neg_score, -1, neg_g.neg_sample_size)
         # subsampling weight
         # TODO: add subsampling to new sampler
-        #if self.args.non_uni_weight:
+        # if self.args.non_uni_weight:
         #    subsampling_weight = pos_g.edata['weight']
         #    pos_score = (pos_score * subsampling_weight).sum() / subsampling_weight.sum()
         #    neg_score = (neg_score * subsampling_weight).sum() / subsampling_weight.sum()
-        #else:
-        edge_weight = F.copy_to(
-            pos_g.edata['impts'],
-            get_dev(gpu_id)) if self.has_edge_importance else None
-        loss, log = self.loss_gen.get_total_loss(pos_score, neg_score,
-                                                 edge_weight)
+        # else:
+        edge_weight = F.copy_to(pos_g.edata['impts'], get_dev(
+            gpu_id)) if self.has_edge_importance else None
+        loss, log = self.loss_gen.get_total_loss(pos_score, neg_score, edge_weight)
         # regularization: TODO(zihao)
-        #TODO: only reg ent&rel embeddings. other params to be added.
-        if self.args.regularization_coef > 0.0 and self.args.regularization_norm > 0 and self.encoder_model_name in [
-                'concat', 'shallow'
-        ]:
+        # TODO: only reg ent&rel embeddings. other params to be added.
+        if self.args.regularization_coef > 0.0 and self.args.regularization_norm > 0 and self.encoder_model_name in ['concat', 'shallow']:
             coef, nm = self.args.regularization_coef, self.args.regularization_norm
-            reg = coef * (norm(self.entity_emb.curr_emb(), nm) + norm(
-                self.relation_emb.curr_emb(), nm))
+            reg = coef * norm(self.relation_emb.curr_emb(), nm)
+            if self.LRE:
+                emb_index = self.entity_emb_index.curr_emb()
+                emb_base = self.entity_emb_base(None, gpu_id, False)
+                entity_embeddings = torch.mm(
+                    emb_index,
+                    emb_base
+                )
+                reg += coef * norm(entity_embeddings, nm)
+            else:
+                reg += coef * norm(self.entity_emb.curr_emb(), nm)
+
             log['regularization'] = get_scalar(reg)
             loss = loss + reg
 
         return loss, log
 
-    def update(self, gpu_id=-1):
+     def update(self, gpu_id=-1):
         """ Update the embeddings in the model
 
         gpu_id : int
             Which gpu to accelerate the calculation. if -1 is provided, cpu is used.
         """
-        if self.encoder_model_name in ['shallow', 'concat']:
-            self.entity_emb.update(gpu_id)
+        if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+            if self.LRE:
+                self.entity_emb_index.update(gpu_id)
+                self.entity_emb_base.update(gpu_id)
+            else:
+                self.entity_emb.update(gpu_id)
             self.relation_emb.update(gpu_id)
             self.score_func.update(gpu_id)
 
@@ -813,8 +925,12 @@ class KEModel(object):
     def finish_async_update(self):
         """Terminate the async update for entity embedding.
         """
-        if self.encoder_model_name in ['shallow', 'concat']:
-            self.entity_emb.finish_async_update()
+        if self.encoder_model_name in ['shallow', 'concat', 'concat_v1']:
+            if self.LRE:
+                self.entity_emb_index.finish_async_update()
+                self.entity_emb_base.finish_async_update()
+            else:
+                self.entity_emb.finish_async_update()
 
     def pull_model(self, client, pos_g, neg_g):
         with th.no_grad():
@@ -838,20 +954,26 @@ class KEModel(object):
     def push_gradient(self, client):
         with th.no_grad():
             l2g = client.get_local2global()
-            for entity_id, entity_data in self.entity_emb.trace:
-                grad = entity_data.grad.data
-                global_entity_id = l2g[entity_id]
-                client.push(
-                    name='entity_emb',
-                    id_tensor=global_entity_id,
-                    data_tensor=grad)
+            if self.LRE and self.encoder_model_name == 'shallow':
+                for entity_id, entity_data in self.entity_emb_index.trace:
+                    grad = entity_data.grad.data
+                    global_entity_id = l2g[entity_id]
+                    client.push(name='entity_emb_index',
+                                id_tensor=global_entity_id, data_tensor=grad)
+
+                for base_id, base_data in self.entity_emb_base.trace:
+                    grad = base_data.grad.data
+                    client.push(name='entity_emb_base', id_tensor=base_id, data_tensor=grad)
+
+            else:
+                for entity_id, entity_data in self.entity_emb.trace:
+                    grad = entity_data.grad.data
+                    global_entity_id = l2g[entity_id]
+                    client.push(name='entity_emb', id_tensor=global_entity_id, data_tensor=grad)
 
             for relation_id, relation_data in self.relation_emb.trace:
                 grad = relation_data.grad.data
-                client.push(
-                    name='relation_emb',
-                    id_tensor=relation_id,
-                    data_tensor=grad)
+                client.push(name='relation_emb', id_tensor=relation_id, data_tensor=grad)
 
         self.entity_emb.trace = []
         self.relation_emb.trace = []

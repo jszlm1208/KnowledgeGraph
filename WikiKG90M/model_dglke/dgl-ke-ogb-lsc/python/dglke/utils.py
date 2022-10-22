@@ -410,5 +410,6 @@ class CommonArgParser(argparse.ArgumentParser):
         self.add_argument('--ote_size', type=int, default=20)
         self.add_argument('--train_percent', type=float, default=1.0)
         self.add_argument('--lr_decay_rate', type=float, default=None, help='')
-        self.add_argument(
-            '--lr_decay_interval', type=int, default=10000, help='')
+        self.add_argument('--lr_decay_interval', type=int, default=10000, help='')
+        self.add_argument('--LRE', action='store_true', help='Enable low rank approximation for entity embeddings.')
+        self.add_argument('--LRE_rank', type=int, default=200, help='Rank of the two low-rank matrixs for approximating entitiy embedding matrix')
