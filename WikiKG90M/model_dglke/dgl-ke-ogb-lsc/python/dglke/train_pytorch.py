@@ -312,7 +312,7 @@ def test(args, model, test_samplers, step, rank=0, mode='Test'):
         if 'h,r->t' in answers:
             assert 'h,r->t' in logs, "h,r->t not in logs"
             input_dict['h,r->t'] = {
-                't_correct_index': th.cat(answers['h,r->t'], 0),
+                't': th.cat(answers['h,r->t'], 0),
                 't_pred_top10': th.cat(logs['h,r->t'], 0)
             }
             if step >= 30000:
