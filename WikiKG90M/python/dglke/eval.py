@@ -22,11 +22,13 @@ import os
 import logging
 import time
 import pickle
+import torch
 
-from .utils import get_compatible_batch_size
+from utils import get_compatible_batch_size, CommonArgParser_eval
 
-from .dataloader import EvalDataset, TrainDataset
-from .dataloader import get_dataset
+from dataloader import EvalDataset, TrainDataset
+from dataloader import get_dataset
+from save_test_submission import get_test_predictions
 
 backend = os.environ.get('DGLBACKEND', 'pytorch')
 if backend.lower() == 'mxnet':
@@ -35,28 +37,21 @@ if backend.lower() == 'mxnet':
     from .train_mxnet import test
 else:
     import torch.multiprocessing as mp
-    from .train_pytorch import load_model_from_checkpoint
-    from .train_pytorch import test, test_mp
+    from train_pytorch import load_model_from_checkpoint
+    from train_pytorch import test, test_mp
 
-
-class ArgParser(argparse.ArgumentParser):
+class ArgParser(CommonArgParser_eval):
     def __init__(self):
         super(ArgParser, self).__init__()
 
-        self.add_argument(
-            '--model_name',
-            default='TransE',
-            choices=[
-                'TransE', 'TransE_l1', 'TransE_l2', 'TransR', 'RESCAL',
-                'DistMult', 'ComplEx', 'RotatE', 'SimplE'
-            ],
-            help='The models provided by DGL-KE.')
-        self.add_argument(
-            '--data_path',
-            type=str,
-            default='data',
-            help='The path of the directory where DGL-KE loads knowledge graph data.'
-        )
+        self.add_argument('--model_name', default='TransE',
+                          choices=['TransE', 'TransE_l1', 'TransE_l2', 'TransR',
+                                   'RESCAL', 'DistMult', 'ComplEx', 'RotatE',
+                                   'SimplE','OTE'],
+                          help='The models provided by DGL-KE.')
+        self.add_argument('--data_path', type=str, default='data',
+                          help='The path of the directory where DGL-KE loads knowledge graph data.')
+        self.add_argument('--cand_path', type=str, default='data')
         self.add_argument('--dataset', type=str, default='FB15k',
                           help='The name of the builtin knowledge graph. Currently, the builtin knowledge '\
                                   'graphs include FB15k, FB15k-237, wn18, wn18rr and Freebase. '\
@@ -72,74 +67,41 @@ class ArgParser(argparse.ArgumentParser):
                                   'If the format is udd_{htr}, users need to provide'\
                                   'entity_file relation_file train_file [valid_file] [test_file].'\
                                   'In both cases, valid_file and test_file are optional.')
-        self.add_argument(
-            '--delimiter',
-            type=str,
-            default='\t',
-            help='Delimiter used in data files. Note all files should use the same delimiter.'
-        )
-        self.add_argument(
-            '--model_path',
-            type=str,
-            default='ckpts',
-            help='The path of the directory where models are saved.')
-        self.add_argument(
-            '--batch_size_eval',
-            type=int,
-            default=8,
-            help='The batch size used for evaluation.')
-        self.add_argument(
-            '--neg_sample_size_eval',
-            type=int,
-            default=-1,
-            help='The negative sampling size for evaluation.')
-        self.add_argument(
-            '--neg_deg_sample_eval',
-            action='store_true',
-            help='Negative sampling proportional to vertex degree for evaluation.'
-        )
-        self.add_argument(
-            '--hidden_dim',
-            type=int,
-            default=256,
-            help='The hidden dim used by relation and entity')
-        self.add_argument(
-            '-g',
-            '--gamma',
-            type=float,
-            default=12.0,
-            help='The margin value in the score function. It is used by TransX and RotatE.'
-        )
-        self.add_argument(
-            '--eval_percent',
-            type=float,
-            default=1,
-            help='The percentage of data used for evaluation.')
-        self.add_argument(
-            '--no_eval_filter',
-            action='store_true',
-            help='Disable filter positive edges from randomly constructed negative edges for evaluation'
-        )
-        self.add_argument(
-            '--gpu',
-            type=int,
-            default=[-1],
-            nargs='+',
-            help='a list of active gpu ids, e.g. 0')
+        self.add_argument('--delimiter', type=str, default='\t',
+                          help='Delimiter used in data files. Note all files should use the same delimiter.')
+        self.add_argument('--model_path', type=str, default='ckpts',
+                          help='The path of the directory where models are saved.')
+        self.add_argument('--model_prefix', type=str, default='ckpts',
+                          help='The path of the directory where models are saved.')
+        self.add_argument('--batch_size_eval', type=int, default=8,
+                          help='The batch size used for evaluation.')
+        self.add_argument('--neg_sample_size_eval', type=int, default=-1,
+                          help='The negative sampling size for evaluation.')
+        self.add_argument('--neg_deg_sample_eval', action='store_true',
+                          help='Negative sampling proportional to vertex degree for evaluation.')
+        self.add_argument('--hidden_dim', type=int, default=256,
+                          help='The hidden dim used by relation and entity')
+        self.add_argument('-g', '--gamma', type=float, default=12.0,
+                          help='The margin value in the score function. It is used by TransX and RotatE.')
+        self.add_argument('--LRE_rank',  type=int, default=200,
+                          help='rank for low dimensional reduction')
+        self.add_argument('--LRE', action='store_true',
+                          help='rank for low dimensional reduction')
+        
+        self.add_argument('--eval_percent', type=float, default=1,
+                          help='The percentage of data used for evaluation.')
+        self.add_argument('--no_eval_filter', action='store_true',
+                          help='Disable filter positive edges from randomly constructed negative edges for evaluation')
+        self.add_argument('--gpu', type=int, default=[-1], nargs='+',
+                          help='a list of active gpu ids, e.g. 0')
         self.add_argument('--mix_cpu_gpu', action='store_true',
                           help='Evaluate a knowledge graph embedding model with both CPUs and GPUs.'\
                                   'The embeddings are stored in CPU memory and the training is performed in GPUs.'\
                                   'This is usually used for training a large knowledge graph embeddings.')
-        self.add_argument(
-            '-de',
-            '--double_ent',
-            action='store_true',
-            help='Double entitiy dim for complex number It is used by RotatE.')
-        self.add_argument(
-            '-dr',
-            '--double_rel',
-            action='store_true',
-            help='Double relation dim for complex number.')
+        self.add_argument('-de', '--double_ent', action='store_true',
+                          help='Double entitiy dim for complex number It is used by RotatE.')
+        self.add_argument('-dr', '--double_rel', action='store_true',
+                          help='Double relation dim for complex number.')
         self.add_argument('--num_proc', type=int, default=1,
                           help='The number of processes to evaluate the model in parallel.'\
                                   'For multi-GPU, the number of processes by default is set to match the number of GPUs.'\
@@ -147,22 +109,19 @@ class ArgParser(argparse.ArgumentParser):
         self.add_argument('--num_thread', type=int, default=1,
                           help='The number of CPU threads to evaluate the model in each process.'\
                                   'This argument is used for multiprocessing computation.')
-        self.add_argument(
-            '--loss_genre',
-            default='Logsigmoid',
-            choices=['Hinge', 'Logistic', 'Logsigmoid', 'BCE'],
-            help='The loss function used to train KGEM.')
+        self.add_argument('--loss_genre', default='Logsigmoid',
+                          choices=['Hinge', 'Logistic', 'Logsigmoid', 'BCE'],
+                          help='The loss function used to train KGEM.')
         self.add_argument('--print_on_screen', action='store_true')
-        self.add_argument(
-            '--encoder_model_name',
-            type=str,
-            default='emb',
-            help='emb or roberta or both')
+        self.add_argument('--encoder_model_name', type=str, default='emb',
+                          help='emb or roberta or both')
 
+        self.add_argument('--save_path', type=str, default='outputs',
+                          help='The path of the directory where ouput predictions are saved.')
+        
     def parse_args(self):
         args = super().parse_args()
         return args
-
 
 def main():
     args = ArgParser().parse_args()
@@ -170,17 +129,22 @@ def main():
     if args.neg_deg_sample_eval:
         assert not args.eval_filter, "if negative sampling based on degree, we can't filter positive edges."
 
-    assert os.path.exists(
-        args.model_path), 'No existing model_path: {}'.format(args.model_path)
+    args.model_path = os.path.join(args.model_path, args.model_prefix)
+    print(args.model_path)
+    assert os.path.exists(args.model_path), 'No existing model_path: {}'.format(args.model_path)
 
-    assert args.dataset == 'wikikg90m'
+    assert args.dataset =='wikikg90m'
     args.neg_sample_size_eval = 1000
 
     # load dataset and samplers
-    dataset = get_dataset(args, args.data_path, args.dataset, args.format,
-                          args.delimiter, args.data_files)
+    dataset = get_dataset(args.data_path,
+                          args.cand_path,
+                          args.dataset,
+                          args.format,
+                          args.delimiter,
+                          args.data_files)
     args.train = False
-    args.valid = False
+    args.valid = True
     args.test = True
     args.strict_rel_part = False
     args.soft_rel_part = False
@@ -200,67 +164,87 @@ def main():
     eval_dataset = EvalDataset(dataset, args)
 
     if args.neg_sample_size_eval < 0:
-        args.neg_sample_size_eval = args.neg_sample_size = eval_dataset.g.number_of_nodes(
-        )
-    args.batch_size_eval = get_compatible_batch_size(args.batch_size_eval,
-                                                     args.neg_sample_size_eval)
+        args.neg_sample_size_eval = args.neg_sample_size = eval_dataset.g.number_of_nodes()
+    args.batch_size_eval = get_compatible_batch_size(args.batch_size_eval, args.neg_sample_size_eval)
 
-    args.num_workers = 8  # fix num_workers to 8
+    args.num_workers = 8 # fix num_workers to 8
     if args.num_proc > 1:
         test_sampler_tails = []
         test_sampler_heads = []
         for i in range(args.num_proc):
-            test_sampler_head = eval_dataset.create_sampler(
-                'test',
-                args.batch_size_eval,
-                args.neg_sample_size_eval,
-                args.neg_sample_size_eval,
-                args.eval_filter,
-                mode='head',
-                num_workers=args.num_workers,
-                rank=i,
-                ranks=args.num_proc)
-            test_sampler_tail = eval_dataset.create_sampler(
-                'test',
-                args.batch_size_eval,
-                args.neg_sample_size_eval,
-                args.neg_sample_size_eval,
-                args.eval_filter,
-                mode='tail',
-                num_workers=args.num_workers,
-                rank=i,
-                ranks=args.num_proc)
-            test_sampler_heads.append(test_sampler_head)
+            #test_sampler_head = eval_dataset.create_sampler('test', args.batch_size_eval,
+            #                                                args.neg_sample_size_eval,
+            #                                                args.neg_sample_size_eval,
+            #                                                args.eval_filter,
+            #                                                mode='head',
+            #                                                num_workers=args.num_workers,
+            #                                                rank=i, ranks=args.num_proc)
+            test_sampler_tail = eval_dataset.create_sampler('test', args.batch_size_eval,
+                                                            args.neg_sample_size_eval,
+                                                            args.neg_sample_size_eval,
+                                                            args.eval_filter,
+                                                            mode='tail',
+                                                            num_workers=args.num_workers,
+                                                            rank=i, ranks=args.num_proc)
+            #test_sampler_heads.append(test_sampler_head)
             test_sampler_tails.append(test_sampler_tail)
     else:
-        test_sampler_head = eval_dataset.create_sampler(
-            'test',
-            args.batch_size_eval,
-            args.neg_sample_size_eval,
-            args.neg_sample_size_eval,
-            args.eval_filter,
-            mode='head',
-            num_workers=args.num_workers,
-            rank=0,
-            ranks=1)
-        test_sampler_tail = eval_dataset.create_sampler(
-            'test',
-            args.batch_size_eval,
-            args.neg_sample_size_eval,
-            args.neg_sample_size_eval,
-            args.eval_filter,
-            mode='tail',
-            num_workers=args.num_workers,
-            rank=0,
-            ranks=1)
+        #test_sampler_head = eval_dataset.create_sampler('test', args.batch_size_eval,
+        #                                                args.neg_sample_size_eval,
+        #                                                args.neg_sample_size_eval,
+        #                                                args.eval_filter,
+        #                                                mode='head',
+        #                                                num_workers=args.num_workers,
+        #                                                rank=0, ranks=1)
+        test_sampler_tail = eval_dataset.create_sampler('test', args.batch_size_eval,
+                                                        args.neg_sample_size_eval,
+                                                        args.neg_sample_size_eval,
+                                                        args.eval_filter,
+                                                        mode='tail',
+                                                        num_workers=args.num_workers,
+                                                        rank=0, ranks=1)
 
+    if args.num_proc > 1:
+        valid_sampler_tails = []
+        valid_sampler_heads = []
+        for i in range(args.num_proc):
+            # test_sampler_head = eval_dataset.create_sampler('test', args.batch_size_eval,
+            #                                                 args.neg_sample_size_eval,
+            #                                                 args.neg_sample_size_eval,
+            #                                                 args.eval_filter,
+            #                                                 mode='head',
+            #                                                 num_workers=args.num_workers,
+            #                                                 rank=i, ranks=args.num_proc)
+            valid_sampler_tail = eval_dataset.create_sampler('valid', args.batch_size_eval,
+                                                            args.neg_sample_size_eval,
+                                                            args.neg_sample_size_eval,
+                                                            args.eval_filter,
+                                                            mode='tail',
+                                                            num_workers=args.num_workers,
+                                                            rank=i, ranks=args.num_proc)
+            #test_sampler_heads.append(test_sampler_head)
+            valid_sampler_tails.append(valid_sampler_tail)
+    else:
+        # test_sampler_head = eval_dataset.create_sampler('test', args.batch_size_eval,
+        #                                                 args.neg_sample_size_eval,
+        #                                                 args.neg_sample_size_eval,
+        #                                                 args.eval_filter,
+        #                                                 mode='head',
+        #                                                 num_workers=args.num_workers,
+        #                                                 rank=0, ranks=1)
+        valid_sampler_tail = eval_dataset.create_sampler('valid', args.batch_size_eval,
+                                                        args.neg_sample_size_eval,
+                                                        args.neg_sample_size_eval,
+                                                        args.eval_filter,
+                                                        mode='tail',
+                                                        num_workers=args.num_workers,
+                                                        rank=0, ranks=1)
+    
     # load model
     n_entities = dataset.n_entities
     n_relations = dataset.n_relations
     ckpt_path = args.model_path
-    model = load_model_from_checkpoint(args, n_entities, n_relations,
-                                       ckpt_path, dataset.entity_feat.shape[1],
-                                       dataset.relation_feat.shape[1])
+    model = load_model_from_checkpoint(args, n_entities, n_relations, ckpt_path, dataset.entity_feat.shape[1], dataset.relation_feat.shape[1])
     if args.encoder_model_name in ['roberta', 'concat']:
         model.entity_feat.emb = dataset.entity_feat
         model.relation_feat.emb = dataset.relation_feat
@@ -275,16 +259,13 @@ def main():
         queue = mp.Queue(args.num_proc)
         procs = []
         for i in range(args.num_proc):
-            proc = mp.Process(
-                target=test_mp,
-                args=(
-                    args,
-                    model,
-                    [test_sampler_heads[i], test_sampler_tails[i]],
-                    i,
-                    'Test',
-                    # queue
-                ))
+            proc = mp.Process(target=test_mp, args=(args,
+                                                    model,
+                                                    [test_sampler_heads[i], test_sampler_tails[i]],
+                                                    i,
+                                                    'Test',
+                                                    # queue
+                                                    ))
             procs.append(proc)
             proc.start()
 
@@ -305,9 +286,21 @@ def main():
         for proc in procs:
             proc.join()
     else:
-        test(args, model, [test_sampler_head, test_sampler_tail], 0, 0, 'Test')
+        #test(args, model, [test_sampler_head, test_sampler_tail], 0, 0, 'Test')
+        test_input_dict = test(args, model,  [test_sampler_tail],step=0,rank=0,mode='Test')
+        torch.save(test_input_dict, os.path.join(
+                    args.save_path, "test_0_final.pkl"))
+        valid_input_dict = test(args, model,  [valid_sampler_tail],step=0,rank=0,mode='valid')
+        torch.save(valid_input_dict, os.path.join(
+                    args.save_path, "valid_0_final.pkl"))
     print('Test takes {:.3f} seconds'.format(time.time() - start))
+    
+    # parameters for evaluating and generating the test predictions.
+    path = args.save_path
+    valid_candidate_path =os.path.join(args.cand_path, "val_t_candidate_20000.npy")
+    test_candidate_path =os.path.join(args.cand_path, "test-dev_t_candidate_20000.npy")
 
+    get_test_predictions(path,valid_candidate_path,test_candidate_path,mode="test-dev",num_proc=1)
 
 if __name__ == '__main__':
     main()
