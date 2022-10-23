@@ -261,9 +261,9 @@ def train(args,
     print('proc {} takes {:.3f} seconds'.format(rank,
                                                 time.time() - train_start))
     time.sleep(10)
-    # if rank == 0 and not args.no_save_emb:
-    #     save_model(args, model, None, None)
-    #     print('proc {} model saved'.format(rank))
+    if rank == 0 and not args.no_save_emb:
+         save_model(args, model, None, None)
+         print('proc {} model saved'.format(rank))
 
     if barrier is not None:
         barrier.wait()
