@@ -4,7 +4,7 @@ output_path=./model_output/ote40
 mkdir -p $output_path
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 \
-python model_dglke/dgl-ke-ogb-lsc/python/dglke/train.py \
+python python/dglke/train.py \
     --model_name OTE \
     --data_path dataset \
     --hidden_dim 200 --gamma 12 --ote_size 40 --lr 0.1 --regularization_coef 1e-9 \
@@ -19,4 +19,3 @@ python model_dglke/dgl-ke-ogb-lsc/python/dglke/train.py \
     --seed $RANDOM \
     --batch_size 1000 --neg_sample_size 1000 \
     --print_on_screen --encoder_model_name concat  --save_path ${output_path} 
-    --LRE --LRE_rank 200

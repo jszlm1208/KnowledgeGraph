@@ -83,11 +83,6 @@ class ArgParser(CommonArgParser_eval):
                           help='The hidden dim used by relation and entity')
         self.add_argument('-g', '--gamma', type=float, default=12.0,
                           help='The margin value in the score function. It is used by TransX and RotatE.')
-        self.add_argument('--LRE_rank',  type=int, default=200,
-                          help='rank for low dimensional reduction')
-        self.add_argument('--LRE', action='store_true',
-                          help='rank for low dimensional reduction')
-        
         self.add_argument('--eval_percent', type=float, default=1,
                           help='The percentage of data used for evaluation.')
         self.add_argument('--no_eval_filter', action='store_true',

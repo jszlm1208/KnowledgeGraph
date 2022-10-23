@@ -412,3 +412,31 @@ class CommonArgParser(argparse.ArgumentParser):
         self.add_argument('--lr_decay_rate', type=float, default=None, help='')
         self.add_argument(
             '--lr_decay_interval', type=int, default=10000, help='')
+
+class CommonArgParser_eval(argparse.ArgumentParser):
+    def __init__(self):
+        super(CommonArgParser_eval, self).__init__()
+        self.add_argument('--force_sync_interval', type=int, default=-1,
+                          help='We force a synchronization between processes every x steps for'
+                          'multiprocessing training. This potentially stablizes the training process'
+                          'to get a better performance. For multiprocessing training, it is set to 1000 by default.')
+        self.add_argument('--feat_hidden_dim', type=int, default=100,
+                          help='The embedding size of relation and entity')
+        self.add_argument('--lr', type=float, default=0.01,
+                          help='The learning rate. DGL-KE uses Adagrad to optimize the model parameters.')
+       
+        
+        self.add_argument('-adv', '--neg_adversarial_sampling', action='store_true',
+                          help='Indicate whether to use negative adversarial sampling.'
+                                  'It will weight negative samples with higher scores more.')
+        self.add_argument('-a', '--adversarial_temperature', default=1.0, type=float,
+                          help='The temperature used for negative adversarial sampling.')
+        self.add_argument('-rc', '--regularization_coef', type=float, default=0.000002,
+                          help='The coefficient for regularization.')
+        self.add_argument('-rn', '--regularization_norm', type=int, default=3,
+                          help='norm used in regularization.')
+        self.add_argument('-pw', '--pairwise', action='store_true',
+                          help='Indicate whether to use pairwise loss function. '
+                               'It compares the scores of a positive triple and a negative triple')
+        self.add_argument('-m', '--margin', type=float, default=1.0,
+                          help='hyper-parameter for hinge loss.')
