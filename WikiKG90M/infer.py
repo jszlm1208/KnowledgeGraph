@@ -47,7 +47,7 @@ class ArgParser(CommonArgParser):
         self.add_argument(
             '--infer_test',
             action='store_true',
-            help='Evaluate the model on the validation set in the training.')
+            help='Evaluate the model on the test set in the training.')
         self.add_argument(
             '--model_path',
             type=str,
