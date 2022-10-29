@@ -37,37 +37,50 @@ def main(gpu, output_path, data_path):
     #for feature_walk_probability
     
     hrt_path = os.path.join(data_path, "wikikg90m-v2/processed/train_hrt.npy")
-    val_hr_path = os.path.join(data_path, "wikikg90m-v2/processed/val_hr.npy")
-    val_t_candidate_path = os.path.join(data_path, "wikikg90m-v2/processed/val_t_candidate.npy")
-    test_hr_path = os.path.join(data_path, "wikikg90m-v2/processed/test-dev_hr.npy")
-    test_t_candidate_path = os.path.join(data_path, "wikikg90m-v2/processed/test_t_candidate.npy")
-    #print("File ", hrt_path, os.path.exists(hrt_path))
     train_hrt = np.load(hrt_path, mmap_mode="r")
-    val_hr = np.load(val_hr_path, mmap_mode="r")
-    val_t_candidate = np.load(val_t_candidate_path, mmap_mode="r")
-    test_hr = np.load(test_hr_path, mmap_mode="r")
-    test_t_candidate = np.load(test_t_candidate_path, mmap_mode="r")
+    
     data_h2r = h2r(train_hrt)
-    data_h2t = h2t(train_hrt)
-    data_r2h = r2h(train_hrt)
-    data_r2t = r2t(train_hrt)
-    data_t2h = t2h(train_hrt)
-    data_t2r = t2r(train_hrt)
+   # data_h2t = h2t(train_hrt)
+   # data_r2h = r2h(train_hrt)
+   # data_r2t = r2t(train_hrt)
+   # data_t2h = t2h(train_hrt)
+   # data_t2r = t2r(train_hrt)
 
     feature_output_path = os.path.join(output_path,"feature_output")
-    val_output_path = os.path.join(output_path,"valid_feats")
-    test_output_path = os.path.join(output_path,"test_feats")
+    
 
     if not os.path.exists(output_path):
             os.mkdir(output_path)
     if not os.path.exists(feature_output_path):
             os.mkdir(feature_output_path)
     pickle.dump(data_h2r, open(os.path.join(output_path,"feature_output/h2r_prob.pkl"), "wb"))
-    pickle.dump(data_h2t, open(os.path.join(output_path,"feature_output/h2t_prob.pkl"), "wb"))
-    pickle.dump(data_r2h, open(os.path.join(output_path,"feature_output/r2h_prob.pkl"), "wb"))
-    pickle.dump(data_r2t, open(os.path.join(output_path,"feature_output/r2t_prob.pkl"), "wb"))
-    pickle.dump(data_t2h, open(os.path.join(output_path,"feature_output/t2h_prob.pkl"), "wb"))
-    pickle.dump(data_t2r, open(os.path.join(output_path,"feature_output/t2r_prob.pkl"), "wb"))
+   # pickle.dump(data_h2t, open(os.path.join(output_path,"feature_output/h2t_prob.pkl"), "wb"))
+   # pickle.dump(data_r2h, open(os.path.join(output_path,"feature_output/r2h_prob.pkl"), "wb"))
+   # pickle.dump(data_r2t, open(os.path.join(output_path,"feature_output/r2t_prob.pkl"), "wb"))
+   # pickle.dump(data_t2h, open(os.path.join(output_path,"feature_output/t2h_prob.pkl"), "wb"))
+   # pickle.dump(data_t2r, open(os.path.join(output_path,"feature_output/t2r_prob.pkl"), "wb"))
+
+    del data_h2r
+   # del data_h2t
+   # del data_r2h
+   # del data_r2t
+   # del data_t2h
+   # del data_t2r
+
+
+    #--------------------------------for dump feature---------------------------------------------------------------------
+    """
+    val_hr_path = os.path.join(data_path, "wikikg90m-v2/processed/val_hr.npy")
+    val_t_candidate_path = os.path.join(data_path, "wikikg90m-v2/processed/val_t_candidate.npy")
+    test_hr_path = os.path.join(data_path, "wikikg90m-v2/processed/test-dev_hr.npy")
+    test_t_candidate_path = os.path.join(data_path, "wikikg90m-v2/processed/test_t_candidate.npy")
+    val_hr = np.load(val_hr_path, mmap_mode="r")
+    val_t_candidate = np.load(val_t_candidate_path, mmap_mode="r")
+    test_hr = np.load(test_hr_path, mmap_mode="r")
+    test_t_candidate = np.load(test_t_candidate_path, mmap_mode="r")
+
+    val_output_path = os.path.join(output_path,"valid_feats")
+    test_output_path = os.path.join(output_path,"test_feats")
 
     data_rrt_val = get_rrt_feat(val_t_candidate,val_hr,data_t2r,data_r2t)
     data_h2t_t2h_val = get_h2t_h2t_feat(val_t_candidate,val_hr,data_h2t,data_t2h)
@@ -128,12 +141,13 @@ def main(gpu, output_path, data_path):
     del data_rrh_test
     
     """
+    
     aml_run = Run.get_context()
     ws=aml_run.experiment.workspace
     datastore = ws.get_default_datastore()
-    datastore.upload(output_path, 'wikikg90mv1/wikikg90m_kddcup2021/',
+    datastore.upload(output_path, 'OTE_manual_features/feature_output/',
         overwrite=True)    
-    """
+    
 
 
 if __name__ == '__main__':

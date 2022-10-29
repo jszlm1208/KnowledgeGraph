@@ -35,7 +35,6 @@ from ogb.lsc import WikiKG90Mv2Evaluator
 from dglke.train_pytorch import load_model, load_model_from_checkpoint
 from dglke.models.pytorch.tensor_models import thread_wrapped_func
 
-
 class ArgParser(CommonArgParser):
     def __init__(self):
         super(ArgParser, self).__init__()
@@ -53,6 +52,8 @@ class ArgParser(CommonArgParser):
             type=str,
             default='ckpts',
             help='the place where to load the model.')
+        self.add_argument('--model_prefix', type=str, default='ckpts',
+                          help='The path of the directory where models are saved.')
 
 
 @thread_wrapped_func
@@ -127,6 +128,8 @@ def use_config_replace_args(args, config):
 
 def main():
     args = ArgParser().parse_args()
+    args.model_path = os.path.join(args.model_path, args.model_prefix)
+    print(args.model_path)
     config = load_model_config(os.path.join(args.model_path, 'config.json'))
     args = use_config_replace_args(args, config)
     args.eval_batch_size = 1

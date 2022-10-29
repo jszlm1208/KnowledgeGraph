@@ -65,7 +65,7 @@ def r2t(train_hrt):
         else:
             data[r][t] += 1
 
-    for r in range(1315):
+    for r in range(1387):
         r_sum = sum(data[r].values())
         for t in data[r]:
             data[r][t] /= r_sum

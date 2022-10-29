@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 ##dim_r=1315 for v1 data, 1387 for v2 data
 
-def get_rrt_feat(t_candidate, hr,t2r_prob,r2t_prob,dim_r=1315):
+def get_rrt_feat(t_candidate, hr,t2r_prob,r2t_prob,dim_r=1387):
     rrt = np.zeros((dim_r, dim_r))
     for i in tqdm(range(dim_r)):
         for t in r2t_prob[i]:
@@ -117,7 +117,7 @@ def get_hht_feat(t_candidate, hr,h2t_prob,t2h_prob):
                     hht_feat[i, j] += prob
     return hht_feat
 
-def get_r2t_h2r_feat(t_candidate, hr, h2r_prob,r2t_prob,r2h_prob,dim_r=1315):
+def get_r2t_h2r_feat(t_candidate, hr, h2r_prob,r2t_prob,r2h_prob,dim_r=1387):
     r2t_h2r = np.zeros((dim_r, dim_r), dtype=np.float16)
     for i in tqdm(range(dim_r)):
         for t in r2t_prob[i]:
@@ -148,7 +148,7 @@ def get_r2t_feat(t_candidate, hr, r2t_prob):
                 r2t_feat[i, j] = r2t_prob[r][t]
     return r2t_feat
 
-def get_rrh_feat(t_candidate, hr, h2r_prob,r2h_prob,t2r_prob,r2t_prob,dim_r=1315):
+def get_rrh_feat(t_candidate, hr, h2r_prob,r2h_prob,t2r_prob,r2t_prob,dim_r=1387):
     rrh = np.zeros((dim_r, dim_r))
     for i in tqdm(range(dim_r)):
         for h in r2h_prob[i]:
