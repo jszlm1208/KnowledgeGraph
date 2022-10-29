@@ -22,12 +22,5 @@ merge(){
     python merge_score.py $model_path 16 valid
 }
 
-data_path=dataset
-
-
-for line in model_output/*/*; do
-    echo $line
-    model_path=$line
-    infer
-    merge
-done
+infer
+merge

@@ -25,28 +25,28 @@ import numpy as np
 import dgl.backend as F
 
 backend = os.environ.get('DGLBACKEND', 'pytorch')
-from .general_models import InferModel
+from general_models import InferModel
 if backend.lower() == 'mxnet':
-    from .mxnet.tensor_models import logsigmoid
-    from .mxnet.tensor_models import none
-    from .mxnet.tensor_models import get_dev
-    from .mxnet.tensor_models import cosine_dist
-    from .mxnet.tensor_models import l2_dist
-    from .mxnet.tensor_models import l1_dist
-    from .mxnet.tensor_models import dot_dist
-    from .mxnet.tensor_models import extended_jaccard_dist
-    from .mxnet.tensor_models import floor_divide
+    from mxnet.tensor_models import logsigmoid
+    from mxnet.tensor_models import none
+    from mxnet.tensor_models import get_dev
+    from mxnet.tensor_models import cosine_dist
+    from mxnet.tensor_models import l2_dist
+    from mxnet.tensor_models import l1_dist
+    from mxnet.tensor_models import dot_dist
+    from mxnet.tensor_models import extended_jaccard_dist
+    from mxnet.tensor_models import floor_divide
     DEFAULT_INFER_BATCHSIZE = 256
 else:
-    from .pytorch.tensor_models import logsigmoid
-    from .pytorch.tensor_models import none
-    from .pytorch.tensor_models import get_dev
-    from .pytorch.tensor_models import cosine_dist
-    from .pytorch.tensor_models import l2_dist
-    from .pytorch.tensor_models import l1_dist
-    from .pytorch.tensor_models import dot_dist
-    from .pytorch.tensor_models import extended_jaccard_dist
-    from .pytorch.tensor_models import floor_divide
+    from pytorch.tensor_models import logsigmoid
+    from pytorch.tensor_models import none
+    from pytorch.tensor_models import get_dev
+    from pytorch.tensor_models import cosine_dist
+    from pytorch.tensor_models import l2_dist
+    from pytorch.tensor_models import l1_dist
+    from pytorch.tensor_models import dot_dist
+    from pytorch.tensor_models import extended_jaccard_dist
+    from pytorch.tensor_models import floor_divide
     DEFAULT_INFER_BATCHSIZE = 1024
 
 
