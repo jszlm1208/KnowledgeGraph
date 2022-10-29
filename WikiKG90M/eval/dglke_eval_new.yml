@@ -1,0 +1,47 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: dglke_eval_new
+display_name: dglke_eval_new
+# version: 1b
+type: command
+inputs:
+  model_name:
+    type: string
+    default: OTE
+  data_path:
+    type: uri_folder
+  cand_path:
+    type: uri_folder
+  model_prefix: 
+    type: string
+    default: OTE_wikikg90m_concat_d_200_g_12.00
+  model_path:
+    type: uri_folder
+  neg_sample_size_eval:
+    type: integer
+    default: 200
+  batch_size_eval:
+    type: integer
+    default: 200
+  ote_size:
+    type: integer
+    default: 20
+
+outputs:
+  model_output:
+    type: uri_folder
+    
+code: ./
+environment: azureml:dgl:11
+command: >-
+  python eval.py 
+    --model_name ${{inputs.model_name}} 
+    --data_path ${{inputs.data_path}}
+    --dataset wikikg90m
+    --scale_type 2
+    --ote_size ${{inputs.ote_size}}
+    --model_prefix ${{inputs.model_prefix}}
+    --neg_sample_size_eval ${{inputs.neg_sample_size_eval}}
+    --batch_size_eval  ${{inputs.batch_size_eval}}
+    --model_path ${{inputs.model_path}}
+    --save_path ${{outputs.model_output}}
+    --cand_path ${{inputs.cand_path}}
