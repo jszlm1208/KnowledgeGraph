@@ -7,7 +7,7 @@ export model_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/
 
 infer(){
 
-python dglke/models/infer.py --data_path $data_path --infer_valid --model_path $model_path &
+python infer.py --data_path $data_path --infer_valid --model_path $model_path &
 sleep 600
 ps -ef|grep infer.py | awk '{print $2}'| xargs kill -9
 
