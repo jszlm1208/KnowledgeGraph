@@ -238,7 +238,7 @@ class KGDatasetWiki(KGDataset):
     '''Load a knowledge graph wikikg
     '''
 
-    def __init__(self, path, cand_path, name='wikikg90m', test_mode='test-dev'):
+    def __init__(self, path, cand_path, cand_size, name='wikikg90m', test_mode='test-dev'):
         self.name = name
         self.dataset = WikiKG90Mv2Dataset(path)
         self.train = self.dataset.train_hrt.T
@@ -248,17 +248,18 @@ class KGDatasetWiki(KGDataset):
         self.test = None
         self.valid_dict = self.dataset.valid_dict
         #self.valid_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'val_t_candidate.npy'))
-        dict_tmp = np.load(os.path.join(cand_path, 'val_t_candidate_20000.npy'), allow_pickle=True).item()
-        self.valid_dict['h,r->t']['t_candidate'] = list(dict_tmp.values())
-        del dict_tmp
+        val_filename = 'val_t_candidate.npy' if cand_size == -1 else f'val_t_candidate_{cand_size}.npy'
+        self.valid_dict['h,r->t']['t_candidate'] = np.load(os.path.join(cand_path, val_filename))
         self.test_dict = self.dataset.test_dict(test_mode)
         if test_mode == 'test-dev':
-            dict_tmp = np.load(os.path.join(cand_path, 'test-dev_t_candidate_20000.npy'), allow_pickle=True).item()
-            self.test_dict['h,r->t']['t_candidate'] = list(dict_tmp.values())
+            test_filename = 'test-dev_t_candidate.npy' if cand_size == -1 else f'test-dev_t_candidate_{cand_size}.npy'
+            #test_filename = 'test_t_candidate.npy' if cand_size == -1 else f'test_t_candidate_{cand_size}.npy'
+            self.test_dict['h,r->t']['t_candidate'] = np.load(os.path.join(cand_path, test_filename))
         else:
-            dict_tmp = np.load(os.path.join(cand_path, 'test-dev_t_candidate_20000.npy'), allow_pickle=True).item()
-            self.test_dict['h,r->t']['t_candidate'] = list(dict_tmp.values())
-        del dict_tmp
+            test_filename = 'test-dev_t_candidate.npy' if cand_size == -1 else f'test-dev_t_candidate_{cand_size}.npy'
+            #test_filename = 'test_t_candidate.npy' if cand_size == -1 else f'test_t_candidate_{cand_size}.npy'
+            self.test_dict['h,r->t']['t_candidate'] = np.load(os.path.join(cand_path, test_filename))
+        print(f"Loading candidates to dataset from: {val_filename}, {test_filename}")
         self.entity_feat = self.dataset.entity_feat
         self.relation_feat = self.dataset.relation_feat
         if 't,r->h' in self.valid_dict:
@@ -273,6 +274,7 @@ class KGDatasetWiki(KGDataset):
     @property
     def rmap_fname(self):
         return None
+
 
 
 class KGDatasetToy(KGDataset):
@@ -734,7 +736,7 @@ class KGDatasetUDD(KGDataset):
         return self.rmap_file
 
 
-def get_dataset(data_path, cand_path, data_name, format_str, delimiter='\t', files=None, has_edge_importance=False, test_mode='test-dev'):
+def get_dataset(data_path, cand_path, cand_size, data_name, format_str, delimiter='\t', files=None, has_edge_importance=False, test_mode='test-dev'):
     if format_str == 'built_in':
         if data_name == 'Freebase':
             dataset = KGDatasetFreebase(data_path)
@@ -748,7 +750,7 @@ def get_dataset(data_path, cand_path, data_name, format_str, delimiter='\t', fil
             dataset = KGDatasetWN18rr(data_path)
         elif data_name == 'wikikg90m':
             print(data_path)
-            dataset = KGDatasetWiki(data_path, cand_path=cand_path, test_mode=test_mode)
+            dataset = KGDatasetWiki(data_path, cand_path=cand_path, cand_size=cand_size, test_mode=test_mode)
         else:
             assert False, "Unknown dataset {}".format(data_name)
     elif format_str.startswith('raw_udd'):
@@ -766,6 +768,7 @@ def get_dataset(data_path, cand_path, data_name, format_str, delimiter='\t', fil
         assert False, "Unknown format {}".format(format_str)
 
     return dataset
+
 
 
 def get_partition_dataset(data_path, data_name, part_id):

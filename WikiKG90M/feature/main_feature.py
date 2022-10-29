@@ -141,13 +141,13 @@ def main(gpu, output_path, data_path):
     del data_rrh_test
     
     """
-    
+    """
     aml_run = Run.get_context()
     ws=aml_run.experiment.workspace
     datastore = ws.get_default_datastore()
     datastore.upload(output_path, 'OTE_manual_features/feature_output/',
         overwrite=True)    
-    
+    """
 
 
 if __name__ == '__main__':

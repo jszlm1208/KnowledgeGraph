@@ -52,6 +52,8 @@ class ArgParser(CommonArgParser_eval):
         self.add_argument('--data_path', type=str, default='data',
                           help='The path of the directory where DGL-KE loads knowledge graph data.')
         self.add_argument('--cand_path', type=str, default='data')
+        self.add_argument('--cand_size', type=int, default=-1)
+        self.add_argument('--format_cand', action='store_true', default=False)
         self.add_argument('--dataset', type=str, default='FB15k',
                           help='The name of the builtin knowledge graph. Currently, the builtin knowledge '\
                                   'graphs include FB15k, FB15k-237, wn18, wn18rr and Freebase. '\
@@ -116,6 +118,10 @@ class ArgParser(CommonArgParser_eval):
                           help='The path of the directory where ouput predictions are saved.')
         self.add_argument('--scale_type', type=int, default=2)
         self.add_argument('--ote_size', type=int, default=20)
+        self.add_argument('--LRE_rank',  type=int, default=200,
+                          help='rank for low dimensional reduction')
+        self.add_argument('--LRE', action='store_true',
+                          help='rank for low dimensional reduction')
         
     def parse_args(self):
         args = super().parse_args()
@@ -133,10 +139,22 @@ def main():
 
     assert args.dataset =='wikikg90m'
     args.neg_sample_size_eval = 1000
+    
+    if args.format_cand and args.cand_size != -1:
+        test_cands_full = np.load(os.path.join(args.cand_path,"test-dev_t_candidate.npy"), allow_pickle=True).item()
+        out_path = os.path.join(args.save_path, f"test-dev_t_candidate_{args.cand_size}.npy")
+        format_to_uniform_size(test_cands_full,args.cand_size,-1,out_path)
+        del test_cands_full
+        val_cands_full = np.load(os.path.join(args.cand_path,"val_t_candidate.npy"), allow_pickle=True).item()
+        out_path = os.path.join(args.save_path, f"val_t_candidate_{args.cand_size}.npy")
+        format_to_uniform_size(val_cands_full,args.cand_size,-1,out_path)
+        del val_cands_full
+        args.cand_path = args.save_path
 
     # load dataset and samplers
     dataset = get_dataset(args.data_path,
                           args.cand_path,
+                          args.cand_size,
                           args.dataset,
                           args.format,
                           args.delimiter,
@@ -295,9 +313,12 @@ def main():
     
     # parameters for evaluating and generating the test predictions.
     path = args.save_path
-    valid_candidate_path =os.path.join(args.cand_path, "val_t_candidate.npy")
-    test_candidate_path =os.path.join(args.cand_path, "test-dev_t_candidate.npy")
-
+    valid_filename = 'val_t_candidate.npy' if args.cand_size == -1 else f'val_t_candidate_{args.cand_size}.npy'
+    test_filename = 'test-dev_t_candidate.npy' if args.cand_size == -1 else f'test-dev_t_candidate_{args.cand_size}.npy'
+    #test_filename = 'test_t_candidate.npy' if args.cand_size == -1 else f'test_t_candidate_{args.cand_size}.npy'
+    valid_candidate_path =os.path.join(args.cand_path, valid_filename)
+    test_candidate_path =os.path.join(args.cand_path, test_filename)
+    print(f"Loading candidates for predictions from {valid_filename}, {test_filename}")
     get_test_predictions(path,valid_candidate_path,test_candidate_path,mode="test-dev",num_proc=1)
 
 if __name__ == '__main__':

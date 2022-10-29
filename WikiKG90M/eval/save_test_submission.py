@@ -15,10 +15,8 @@ def str2bool(v):
 
 # python save_test_submission.py $SAVE_PATH $NUM_PROC $MODE
 def get_test_predictions(path,valid_candidate_path,test_candidate_path,mode="test-dev",num_proc=1,with_test = True): 
-    valid_candidates = np.load(valid_candidate_path,allow_pickle=True).item()
-    valid_candidates = list(valid_candidates.values())
-    test_candidates = np.load(test_candidate_path,allow_pickle=True).item()
-    test_candidates = list(test_candidates.values())
+    valid_candidates = np.load(valid_candidate_path)
+    test_candidates = np.load(test_candidate_path)
     all_file_names = os.listdir(path)
     test_file_names = [name for name in all_file_names if '.pkl' in name and 'test' in name]
     valid_file_names = [name for name in all_file_names if '.pkl' in name and 'valid' in name]
