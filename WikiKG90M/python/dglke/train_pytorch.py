@@ -301,7 +301,8 @@ def test(args, model, test_samplers, step, rank=0, mode='Test'):
                                                        sampler.mode, gpu_id)
                 log = log.cpu()
                 score = score.cpu()
-                logs[sampler.mode].append(log)
+                #logs[sampler.mode].append(log)
+                logs[sampler.mode].append(F.argsort(log, dim=1, descending=True)[:, :10])
                 answers[sampler.mode].append(ans)
                 scores[sampler.mode].append(score)
         print("[{}] finished {} forward".format(rank, mode))
@@ -315,8 +316,8 @@ def test(args, model, test_samplers, step, rank=0, mode='Test'):
                 't': th.cat(answers['h,r->t'], 0),
                 't_pred_top10': th.cat(logs['h,r->t'], 0)
             }
-            if step >= 30000:
-                input_dict['h,r->t']['scores'] = th.cat(scores["h,r->t"], 0)
+            #if step >= 30000:
+             #   input_dict['h,r->t']['scores'] = th.cat(scores["h,r->t"], 0)
     for i in range(len(test_samplers)):
         test_samplers[i] = test_samplers[i].reset()
 

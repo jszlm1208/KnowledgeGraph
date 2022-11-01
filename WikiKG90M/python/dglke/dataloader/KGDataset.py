@@ -262,7 +262,7 @@ class KGDatasetWiki(KGDataset):
         self.valid_dict = self.dataset.valid_dict
         self.valid_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'val_t_candidate.npy'))
         self.test_dict = self.dataset.test_dict('test-dev')
-        self.test_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'test_t_candidate.npy'))
+        self.test_dict['h,r->t']['t_candidate'] = np.load(os.path.join(path, 'wikikg90m-v2', 'processed', 'test_dev_t_candidate_60000.npy'))
         self.entity_feat = self.dataset.entity_feat
         self.relation_feat = self.dataset.relation_feat
         if 't,r->h' in self.valid_dict:

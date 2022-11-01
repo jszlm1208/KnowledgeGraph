@@ -80,7 +80,7 @@ if __name__ == '__main__':
                 result_dict['h,r->t'][key] = np.concatenate(
                     result_dict['h,r->t'][key], 0)
 
-        np.save(path + "/{}_scores.npy".format(mode),
+        np.save("outputs" + "/{}_scores.npy".format(mode),
                 valid_result_dict['h,r->t']['scores'].astype(np.float16))
         if mode == "valid":
             metrics = evaluator.eval(valid_result_dict)

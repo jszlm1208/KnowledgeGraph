@@ -14,9 +14,9 @@ def main():
     run_tags = {
     "dataset": "wikikg90m_v2"
     }
-    subscription_id = '389384f8-9747-48b4-80a2-09f64d0a0dd7'
-    resource_group = 'BizQA-WUS3-RG-GpuClusterA100'
-    workspace_name = 'BizQA-Dev-WUS3-AML'
+    subscription_id = 'xxx'
+    resource_group = 'xxx'
+    workspace_name = 'xxx'
 
     ws = Workspace(subscription_id, resource_group, workspace_name)
     #ws = Workspace.from_config('config.json') ####need point the config.json path, set .from_config() if run in Notbook
