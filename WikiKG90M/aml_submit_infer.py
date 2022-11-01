@@ -14,7 +14,12 @@ def main():
     run_tags = {
     "dataset": "wikikg90m_v2"
     }
-    ws = Workspace.from_config('config.json') ####need point the config.json path, set .from_config() if run in Notbook
+    subscription_id = '389384f8-9747-48b4-80a2-09f64d0a0dd7'
+    resource_group = 'BizQA-WUS3-RG-GpuClusterA100'
+    workspace_name = 'BizQA-Dev-WUS3-AML'
+
+    ws = Workspace(subscription_id, resource_group, workspace_name)
+    #ws = Workspace.from_config('config.json') ####need point the config.json path, set .from_config() if run in Notbook
     ds = ws.get_default_datastore()
     #data_path = ds.path('ogb/ogbl_wikikg2/smore_folder_full/sample/wikikg90m-v2/processed/').as_mount()
     #data_path.path_on_compute = 'tmp/data'
@@ -26,10 +31,12 @@ def main():
     
     
     config = ScriptRunConfig(source_directory='./',
-                                     script='infer.py',
+                                     script='python/infer.py',
                                      arguments=['--model_path',model_path,
                                                 '--data_path',data_path,
-                                                "--gpu", "0,1,2,3,4,5,6,7"],
+                                                '--infer_test',
+                                                '--model_prefix','OTE_wikikg90m_concat_d_240_g_12.00'
+                                                ],
                                      compute_target='BizQADevWUS3A100')
 
     #config.run_config.data_references[data_path.data_reference_name] = data_path.to_config()

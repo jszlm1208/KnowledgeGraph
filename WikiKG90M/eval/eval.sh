@@ -1,6 +1,6 @@
 data_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full"
-model_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/saved_models/ote/OTE_wikikg90m_concat_d_240_g_12.00"
-save_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/saved_models/ote/OTE_wikikg90m_concat_d_240_g_12.00"
+model_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/OTE_model_output" #/OTE_wikikg90m_concat_d_240_g_12.00"
+save_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/OTE_model_output/OTE_wikikg90m_concat_d_240_g_12.00"
 cand_path="/mnt/data/ogbl_wikikg2_recent/ogbl_wikikg2/smore_folder_full/wikikg90m-v2/processed"
 
 bash install_dgl.sh && python eval.py \
@@ -14,5 +14,5 @@ bash install_dgl.sh && python eval.py \
     --batch_size_eval  50 \
     --model_path $model_path \
     --encoder_model_name concat \
-    --save_path outputs \
+    --save_path $dave_path \
     --cand_path $cand_path

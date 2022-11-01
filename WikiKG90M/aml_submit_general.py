@@ -16,11 +16,17 @@ def main():
     "method": "on full dataset",
     "exp": "evaluation"
     }
-    ws = Workspace.from_config('config.json') 
+
+    subscription_id = '389384f8-9747-48b4-80a2-09f64d0a0dd7'
+    resource_group = 'BizQA-WUS3-RG-GpuClusterA100'
+    workspace_name = 'BizQA-Dev-WUS3-AML'
+
+    ws = Workspace(subscription_id, resource_group, workspace_name)
+    # ws = Workspace.from_config('config.json') 
     ds = ws.get_default_datastore()
    # data_path = Dataset.get_by_name(ws, name='OTE_model_output').as_named_input('data_folder').as_mount()
    # cand_path = Dataset.get_by_name(ws, name='cand_data_path').as_named_input('cand_folder').as_mount()
-    data_path = Dataset.get_by_name(ws, name='TransE_1msteps_model').as_named_input('data_folder').as_mount()
+    data_path = Dataset.get_by_name(ws, name='OTE_model_output').as_named_input('data_folder').as_mount()
     cand_path = Dataset.get_by_name(ws, name='cand_data_path').as_named_input('cand_folder').as_mount()
     
     # run experiments
@@ -32,7 +38,7 @@ def main():
                                                 '--aml', True,
                                                 '--with_test', True,
                                                 '--path', data_path,
-                                                '--model_prefix', "TransE_l2_wikikg90m_shallow_d_600_g_10.00",
+                                                '--model_prefix', "OTE_wikikg90m_concat_d_240_g_12.00",
                                                 '--cand_path', cand_path,
                                                 '--num_proc', 1
                                                 ],

@@ -25,6 +25,7 @@ from math import ceil
 from collections import defaultdict
 
 import torch
+torch.cuda.empty_cache()
 import torch.multiprocessing as mp
 from dglke.utils import load_model_config, load_raw_triplet_data, load_triplet_data
 from dglke.utils import get_compatible_batch_size
@@ -54,6 +55,7 @@ class ArgParser(CommonArgParser):
             help='the place where to load the model.')
         self.add_argument('--model_prefix', type=str, default='ckpts',
                           help='The path of the directory where models are saved.')
+       # self.add_argument('--save_path', type=str, default='outputs')
 
 
 @thread_wrapped_func
@@ -113,7 +115,7 @@ def infer(args, model, config, rank, samplers, mode="valid"):
             }
             input_dict['h,r->t']['scores'] = torch.cat(scores["h,r->t"], 0)
         torch.save(input_dict,
-                   os.path.join(args.model_path, "{}_{}_0.pkl".format(mode,
+                   os.path.join('outputs', "{}_{}_0.pkl".format(mode,
                                                                       rank)))
 
     return input_dict
@@ -133,7 +135,7 @@ def main():
     config = load_model_config(os.path.join(args.model_path, 'config.json'))
     args = use_config_replace_args(args, config)
     args.eval_batch_size = 1
-    args.num_proc = 16
+    args.num_proc = 1
     args.eval_percent = 1.0
     dataset = get_dataset(args, args.data_path, args.dataset, args.format,
                           args.delimiter, args.data_files,

@@ -16,7 +16,12 @@ def main():
     "method": "on full dataset", 
     "num_proc":"1"
     }
-    ws = Workspace.from_config('config.json') ####need point the config.json path, set .from_config() if run in Notbook
+    subscription_id = '389384f8-9747-48b4-80a2-09f64d0a0dd7'
+    resource_group = 'BizQA-WUS3-RG-GpuClusterA100'
+    workspace_name = 'BizQA-Dev-WUS3-AML'
+
+    ws = Workspace(subscription_id, resource_group, workspace_name)
+    # ws = Workspace.from_config('config.json')
     ds = ws.get_default_datastore()
     #data_path = ds.path('ogb/ogbl_wikikg2/smore_folder_full/sample/wikikg90m-v2/processed/').as_mount()
     #data_path.path_on_compute = 'tmp/data'
